@@ -178,6 +178,7 @@ func endpoint(w http.ResponseWriter, r *http.Request) {
 		}
 
 		mutex.Lock()
+		defer mutex.Unlock()
 
 		fname := file_prefix + strconv.Itoa(counter)
 		nfile, err := os.Create(fname)
@@ -198,7 +199,6 @@ func endpoint(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, domain+"/%d\n", counter)
 
 		counter++
-		mutex.Unlock()
 	default:
 		WRITE_HEADER(http.StatusMethodNotAllowed, "Only GET and POST requests are supported")
 	}
@@ -231,6 +231,10 @@ func main() {
 		file_prefix = "files/"
 	} else if file_prefix[len(file_prefix)-1] != '/' {
 		file_prefix += "/"
+	}
+
+	if counter_file == "" {
+		counter_file = "counter"
 	}
 
 	if index_file == "" {
