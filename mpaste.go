@@ -138,6 +138,7 @@ func syntax_highlighting(w http.ResponseWriter, r *http.Request) {
 
 	data, err := ioutil.ReadFile(file_prefix + remove_ext(r.URL.Path[1:]))
 	if err != nil {
+		w.Header().Set("Content-Type", "text/plain")
 		WRITE_HEADER(http.StatusNotFound, "404 page not found")
 	}
 
