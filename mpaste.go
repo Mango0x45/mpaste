@@ -20,24 +20,23 @@ import (
 )
 
 const (
-	URL_HOMEPAGE = iota
-	URL_INVALID
-	URL_SYNTAX
-	URL_VALID
+	urlHomepage = iota
+	urlInvalid
+	urlSyntax
+	urlValid
 )
 
 var (
-	counter      int
-	counter_file string
-	domain       string
-	file_prefix  string
-	index_file   string
-	mutex        sync.Mutex
-	secret_key   = os.Getenv("MPASTE_SECRET")
-	user_file    string
+	counterFile string
+	counter     int
+	domain      string
+	filePrefix  string
+	indexFile   string
+	mutex       sync.Mutex
+	secretKey   = os.Getenv("MPASTE_SECRET")
+	style       = styles.Get("monokai")
+	userFile    string
 )
-
-var style = styles.Get("monokai")
 
 func usage() {
 	fmt.Fprintf(os.Stderr,
@@ -46,24 +45,24 @@ func usage() {
 	os.Exit(1)
 }
 
-func error_and_die(e interface{}) {
+func die(e interface{}) {
 	fmt.Fprintln(os.Stderr, e)
 	os.Exit(1)
 }
 
-func remove_ext(s string) string {
+func removeExt(s string) string {
 	return strings.TrimSuffix(s, path.Ext(s))
 }
 
-func allowed_user(name string) bool {
+func allowedUser(name string) bool {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	if _, err := os.Stat(user_file); os.IsNotExist(err) {
+	if _, err := os.Stat(userFile); os.IsNotExist(err) {
 		return false
 	}
 
-	file, err := os.Open(user_file)
+	file, err := os.Open(userFile)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return false
@@ -83,12 +82,12 @@ func allowed_user(name string) bool {
 	return false
 }
 
-func validate_token(r *http.Request) bool {
+func validateToken(r *http.Request) bool {
 	token, _ := jwt.Parse(r.Header.Get("Authorization"), func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Something went wrong\n")
+			return nil, nil
 		}
-		return []byte(secret_key), nil
+		return []byte(secretKey), nil
 	})
 
 	if token == nil {
@@ -101,100 +100,101 @@ func validate_token(r *http.Request) bool {
 		return false
 	}
 
-	if user_file == "" {
+	if userFile == "" {
 		return true
 	}
 
-	return allowed_user(claims["name"].(string))
+	return allowedUser(claims["name"].(string))
 }
 
-func is_valid_url(s string) int {
+func isValidUrl(s string) int {
 	var i int
 	var c rune
 	for i, c = range s {
 		if c == '.' && i > 0 {
-			return URL_SYNTAX
+			return urlSyntax
 		} else if c < '0' || c > '9' {
-			return URL_INVALID
+			return urlInvalid
 		}
 	}
 
 	if c != 0 {
-		return URL_VALID
+		return urlValid
 	}
-	return URL_HOMEPAGE
+	return urlHomepage
 }
 
-func syntax_highlighting(w http.ResponseWriter, r *http.Request) {
+func syntaxHighlighting(w http.ResponseWriter, r *http.Request) {
 	lexer := lexers.Match(r.URL.Path[1:])
 	if lexer == nil {
-		http.ServeFile(w, r, file_prefix+r.URL.Path[1:])
+		http.ServeFile(w, r, filePrefix+r.URL.Path[1:])
 		return
 	}
 
-	data, err := ioutil.ReadFile(file_prefix + remove_ext(r.URL.Path[1:]))
+	data, err := ioutil.ReadFile(filePrefix + removeExt(r.URL.Path[1:]))
 	if err != nil {
 		w.Header().Set("Content-Type", "text/plain")
-		WRITE_HEADER(http.StatusNotFound, "404 page not found")
+		WRITEHEADER(http.StatusNotFound, "404 page not found")
 	}
 
 	iterator, err := lexer.Tokenise(nil, string(data))
 	if err != nil {
-		WRITE_HEADER(http.StatusInternalServerError, "Failed to tokenize output")
+		WRITEHEADER(http.StatusInternalServerError, "Failed to tokenize output")
 	}
 
 	tw, err := strconv.Atoi(r.URL.Query().Get("tabs"))
 	if err != nil {
 		tw = 8
 	}
-	formatter := html.New(html.Standalone(true), html.WithClasses(true), html.WithLineNumbers(true), html.LineNumbersInTable(true), html.TabWidth(tw))
+	formatter := html.New(html.Standalone(true), html.WithClasses(true),
+		html.WithLineNumbers(true), html.LineNumbersInTable(true), html.TabWidth(tw))
 	if err := formatter.Format(w, style, iterator); err != nil {
-		WRITE_HEADER(http.StatusInternalServerError, "Failed to format output")
+		WRITEHEADER(http.StatusInternalServerError, "Failed to format output")
 	}
 }
 
 func endpoint(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		switch is_valid_url(r.URL.Path[1:]) {
-		case URL_HOMEPAGE:
-			http.ServeFile(w, r, index_file)
-		case URL_INVALID:
-			WRITE_HEADER(http.StatusNotFound, "404 page not found")
-		case URL_SYNTAX:
+		switch isValidUrl(r.URL.Path[1:]) {
+		case urlHomepage:
+			http.ServeFile(w, r, indexFile)
+		case urlInvalid:
+			WRITEHEADER(http.StatusNotFound, "404 page not found")
+		case urlSyntax:
 			w.Header().Set("Content-Type", "text/html")
-			syntax_highlighting(w, r)
-		case URL_VALID:
+			syntaxHighlighting(w, r)
+		case urlValid:
 			w.Header().Set("Content-Type", "text/plain")
-			http.ServeFile(w, r, file_prefix+r.URL.Path[1:])
+			http.ServeFile(w, r, filePrefix+r.URL.Path[1:])
 		}
 	case http.MethodPost:
-		if secret_key != "" && !validate_token(r) {
-			WRITE_HEADER(http.StatusForbidden, "Invalid API key")
+		if secretKey != "" && !validateToken(r) {
+			WRITEHEADER(http.StatusForbidden, "Invalid API key")
 		}
 
 		file, _, err := r.FormFile("data")
 		defer file.Close()
 		if err != nil {
-			WRITE_HEADER(http.StatusInternalServerError, "Failed to parse form")
+			WRITEHEADER(http.StatusInternalServerError, "Failed to parse form")
 		}
 
 		mutex.Lock()
 		defer mutex.Unlock()
 
-		fname := file_prefix + strconv.Itoa(counter)
+		fname := filePrefix + strconv.Itoa(counter)
 		nfile, err := os.Create(fname)
 		defer nfile.Close()
 		if err != nil {
-			WRITE_HEADER(http.StatusInternalServerError, "Failed to create file")
+			WRITEHEADER(http.StatusInternalServerError, "Failed to create file")
 		}
 
 		if _, err = io.Copy(nfile, file); err != nil {
-			WRITE_HEADER(http.StatusInternalServerError, "Failed to write file")
+			WRITEHEADER(http.StatusInternalServerError, "Failed to write file")
 		}
 
-		if err = os.WriteFile(counter_file, []byte(strconv.Itoa(counter+1)), 0644); err != nil {
-			WRITE_HEADER(http.StatusInternalServerError, "Failed to update counter")
+		if err = os.WriteFile(counterFile, []byte(strconv.Itoa(counter+1)), 0644); err != nil {
+			WRITEHEADER(http.StatusInternalServerError, "Failed to update counter")
 		}
 
 		w.WriteHeader(http.StatusOK)
@@ -202,7 +202,7 @@ func endpoint(w http.ResponseWriter, r *http.Request) {
 
 		counter++
 	default:
-		WRITE_HEADER(http.StatusMethodNotAllowed, "Only GET and POST requests are supported")
+		WRITEHEADER(http.StatusMethodNotAllowed, "Only GET and POST requests are supported")
 	}
 }
 
@@ -210,13 +210,13 @@ func main() {
 	for opt := byte(0); getgopt.Getopt(len(os.Args), os.Args, ":c:f:i:u:", &opt); {
 		switch opt {
 		case 'c':
-			counter_file = getgopt.Optarg
+			counterFile = getgopt.Optarg
 		case 'f':
-			file_prefix = getgopt.Optarg
+			filePrefix = getgopt.Optarg
 		case 'i':
-			index_file = getgopt.Optarg
+			indexFile = getgopt.Optarg
 		case 'u':
-			user_file = getgopt.Optarg
+			userFile = getgopt.Optarg
 		default:
 			usage()
 		}
@@ -229,40 +229,40 @@ func main() {
 	domain = argv[0]
 	port := argv[1]
 
-	if file_prefix == "" {
-		file_prefix = "files/"
-	} else if file_prefix[len(file_prefix)-1] != '/' {
-		file_prefix += "/"
+	if filePrefix == "" {
+		filePrefix = "files/"
+	} else if filePrefix[len(filePrefix)-1] != '/' {
+		filePrefix += "/"
 	}
 
-	if counter_file == "" {
-		counter_file = "counter"
+	if counterFile == "" {
+		counterFile = "counter"
 	}
 
-	if index_file == "" {
-		index_file = "index.html"
+	if indexFile == "" {
+		indexFile = "index.html"
 	}
 
-	if _, err := os.Stat(index_file); os.IsNotExist(err) {
-		error_and_die(err)
+	if _, err := os.Stat(indexFile); os.IsNotExist(err) {
+		die(err)
 	}
 
-	if _, err := os.Stat(file_prefix); os.IsNotExist(err) {
-		if err = os.MkdirAll(file_prefix, 0755); err != nil {
-			error_and_die(err)
+	if _, err := os.Stat(filePrefix); os.IsNotExist(err) {
+		if err = os.MkdirAll(filePrefix, 0755); err != nil {
+			die(err)
 		}
 	}
 
-	if _, err := os.Stat(counter_file); os.IsNotExist(err) {
+	if _, err := os.Stat(counterFile); os.IsNotExist(err) {
 		counter = 0
 	} else {
-		data, err := ioutil.ReadFile(counter_file)
+		data, err := ioutil.ReadFile(counterFile)
 		if err != nil {
-			error_and_die(err)
+			die(err)
 		}
 		counter, _ = strconv.Atoi(string(data))
 	}
 
 	http.HandleFunc("/", endpoint)
-	error_and_die(http.ListenAndServe(":"+port, nil))
+	die(http.ListenAndServe(":"+port, nil))
 }
