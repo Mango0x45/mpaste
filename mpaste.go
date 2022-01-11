@@ -37,11 +37,7 @@ var (
 	user_file    string
 )
 
-var (
-	style     = styles.Get("pygments")
-	formatter = html.New(html.Standalone(true), html.WithClasses(true),
-		html.WithLineNumbers(true), html.LineNumbersInTable(true))
-)
+var style = styles.Get("pygments")
 
 func usage() {
 	fmt.Fprintf(os.Stderr,
@@ -147,6 +143,11 @@ func syntax_highlighting(w http.ResponseWriter, r *http.Request) {
 		WRITE_HEADER(http.StatusInternalServerError, "Failed to tokenize output")
 	}
 
+	tw, err := strconv.Atoi(r.URL.Query().Get("tabs"))
+	if err != nil {
+		tw = 8
+	}
+	formatter := html.New(html.Standalone(true), html.WithClasses(true), html.WithLineNumbers(true), html.LineNumbersInTable(true), html.TabWidth(tw))
 	if err := formatter.Format(w, style, iterator); err != nil {
 		WRITE_HEADER(http.StatusInternalServerError, "Failed to format output")
 	}

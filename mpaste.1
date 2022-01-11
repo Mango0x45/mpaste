@@ -1,5 +1,5 @@
 .\" vi: tw=100
-.Dd $Mdocdate: October 12 2021 $
+.Dd $Mdocdate: January 12 2022 $
 .Dt MPASTE 1 URM
 .Os UNIX
 .Sh NAME
@@ -16,8 +16,9 @@
 .Sh DESCRIPTION
 .Nm
 is a minimal paste server for hosting plaintext data.
-The paste server has support for file uploads, syntax highlighting, a customizable homepage, and a
-password protected mode where only users with valid API keys can upload pastes.
+The paste server has support for file uploads, syntax highlighting, a customizable homepage,
+customizable tab width, and a password protected mode where only users with valid API keys can
+upload pastes.
 For the simplest example of a working paste server, simply run
 .Nm
 and provide it with a
@@ -44,6 +45,13 @@ When viewed, the paste will be displayed as unformatted plaintext.
 If you would like syntax highlighting simply append the appropiate file extension to the URI.
 For example, to syntax highlight C code with paste ID 5, go to
 .Dq domain.com/5.c .
+.Pp
+By default when syntax highlighting the server displays tab characters with a width of 8 columns. If
+you would like to customize the width of a tab you can set the
+.Dq tabs
+query parameter in the URI.
+For example, to view a Python file with a tab width of 4 columns, go to
+.Dq domain.com/1.py?tabs=4 .
 .Pp
 If you would like to protect the server by requiring all users to have an API key, simply set the
 .Ev MPASTE_SECRET
