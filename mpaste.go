@@ -37,7 +37,7 @@ var (
 	user_file    string
 )
 
-var style = styles.Get("pygments")
+var style = styles.Get("monokai")
 
 func usage() {
 	fmt.Fprintf(os.Stderr,
