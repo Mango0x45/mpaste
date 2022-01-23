@@ -50,6 +50,15 @@ func die(e interface{}) {
 	os.Exit(1)
 }
 
+func writeHeader(w http.ResponseWriter, h int, s string) {
+	w.WriteHeader(h)
+	if s == "" {
+		fmt.Fprintln(w, http.StatusText(h))
+	} else {
+		fmt.Fprintln(w, s)
+	}
+}
+
 func removeExt(s string) string {
 	return strings.TrimSuffix(s, path.Ext(s))
 }
@@ -134,12 +143,14 @@ func syntaxHighlighting(w http.ResponseWriter, r *http.Request) {
 	data, err := ioutil.ReadFile(filePrefix + removeExt(r.URL.Path[1:]))
 	if err != nil {
 		w.Header().Set("Content-Type", "text/plain")
-		WRITEHEADER(http.StatusNotFound, "404 page not found")
+		writeHeader(w, http.StatusNotFound, "")
+		return
 	}
 
 	iterator, err := lexer.Tokenise(nil, string(data))
 	if err != nil {
-		WRITEHEADER(http.StatusInternalServerError, "Failed to tokenize output")
+		writeHeader(w, http.StatusInternalServerError, "Failed to tokenize output")
+		return
 	}
 
 	tw, err := strconv.Atoi(r.URL.Query().Get("tabs"))
@@ -149,7 +160,8 @@ func syntaxHighlighting(w http.ResponseWriter, r *http.Request) {
 	formatter := html.New(html.Standalone(true), html.WithClasses(true),
 		html.WithLineNumbers(true), html.LineNumbersInTable(true), html.TabWidth(tw))
 	if err := formatter.Format(w, style, iterator); err != nil {
-		WRITEHEADER(http.StatusInternalServerError, "Failed to format output")
+		writeHeader(w, http.StatusInternalServerError, "Failed to format output")
+		return
 	}
 }
 
@@ -160,7 +172,8 @@ func endpoint(w http.ResponseWriter, r *http.Request) {
 		case urlHomepage:
 			http.ServeFile(w, r, indexFile)
 		case urlInvalid:
-			WRITEHEADER(http.StatusNotFound, "404 page not found")
+			writeHeader(w, http.StatusNotFound, "")
+			return
 		case urlSyntax:
 			w.Header().Set("Content-Type", "text/html")
 			syntaxHighlighting(w, r)
@@ -170,13 +183,15 @@ func endpoint(w http.ResponseWriter, r *http.Request) {
 		}
 	case http.MethodPost:
 		if secretKey != "" && !validateToken(r) {
-			WRITEHEADER(http.StatusForbidden, "Invalid API key")
+			writeHeader(w, http.StatusForbidden, "")
+			return
 		}
 
 		file, _, err := r.FormFile("data")
 		defer file.Close()
 		if err != nil {
-			WRITEHEADER(http.StatusInternalServerError, "Failed to parse form")
+			writeHeader(w, http.StatusInternalServerError, "Failed to parse form")
+			return
 		}
 
 		mutex.Lock()
@@ -186,15 +201,18 @@ func endpoint(w http.ResponseWriter, r *http.Request) {
 		nfile, err := os.Create(fname)
 		defer nfile.Close()
 		if err != nil {
-			WRITEHEADER(http.StatusInternalServerError, "Failed to create file")
+			writeHeader(w, http.StatusInternalServerError, "Failed to create file")
+			return
 		}
 
 		if _, err = io.Copy(nfile, file); err != nil {
-			WRITEHEADER(http.StatusInternalServerError, "Failed to write file")
+			writeHeader(w, http.StatusInternalServerError, "Failed to write file")
+			return
 		}
 
 		if err = os.WriteFile(counterFile, []byte(strconv.Itoa(counter+1)), 0644); err != nil {
-			WRITEHEADER(http.StatusInternalServerError, "Failed to update counter")
+			writeHeader(w, http.StatusInternalServerError, "Failed to update counter")
+			return
 		}
 
 		w.WriteHeader(http.StatusOK)
@@ -202,7 +220,7 @@ func endpoint(w http.ResponseWriter, r *http.Request) {
 
 		counter++
 	default:
-		WRITEHEADER(http.StatusMethodNotAllowed, "Only GET and POST requests are supported")
+		writeHeader(w, http.StatusMethodNotAllowed, "Only GET and POST requests are supported")
 	}
 }
 
