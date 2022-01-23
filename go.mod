@@ -1,4 +1,4 @@
-module mpaste
+module github.com/Mango0x45/mpaste
 
 go 1.17
 
