@@ -1,5 +1,5 @@
 .\" vi: tw=100
-.Dd 23 January, 2022
+.Dd 24 January, 2022
 .Dt MPASTE 1
 .Os \*(Px
 .Sh NAME
@@ -34,7 +34,7 @@ Once the server is running you can POST a file to the server by sending a form w
 Here is an example of POSTing a file with
 .Xr curl 1 :
 .Pp
-.Dl $ curl -X POST -F 'file=@foo.txt' domain.com
+.Dl $ curl -X POST -F \(aqfile=@foo.txt\(aq domain.com
 .Pp
 After a successful POST the server will respond with a URI to the post in the form
 .Dq domain.com/ID
@@ -83,7 +83,7 @@ header.
 As an example using
 .Xr curl 1 :
 .Pp
-.Dl $ curl -X POST -H 'Authorization: YOUR.JWT.TOKEN' -F 'file=@foo.txt' domain.com
+.Dl $ curl -X POST -H \(aqAuthorization: YOUR.JWT.TOKEN\(aq -F \(aqfile=@foo.txt\(aq domain.com
 .Pp
 Finally, you may want to display content on the paste servers homepage.
 This is easy and can be done by creating a
