@@ -142,7 +142,7 @@ func syntaxHighlighting(w http.ResponseWriter, r *http.Request) {
 
 	data, err := ioutil.ReadFile(filePrefix + removeExt(r.URL.Path[1:]))
 	if err != nil {
-		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		writeHeader(w, http.StatusNotFound, "")
 		return
 	}
@@ -175,10 +175,10 @@ func endpoint(w http.ResponseWriter, r *http.Request) {
 			writeHeader(w, http.StatusNotFound, "")
 			return
 		case urlSyntax:
-			w.Header().Set("Content-Type", "text/html")
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			syntaxHighlighting(w, r)
 		case urlValid:
-			w.Header().Set("Content-Type", "text/plain")
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			http.ServeFile(w, r, filePrefix+r.URL.Path[1:])
 		}
 	case http.MethodPost:
