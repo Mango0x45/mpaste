@@ -12,11 +12,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Mango0x45/getgopt"
-	"github.com/alecthomas/chroma/formatters/html"
-	"github.com/alecthomas/chroma/lexers"
-	"github.com/alecthomas/chroma/styles"
+	"github.com/alecthomas/chroma/v2/formatters/html"
+	"github.com/alecthomas/chroma/v2/lexers"
+	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/Mango0x45/getgopt"
 )
 
 const (
